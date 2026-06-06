@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/auth');
 // Get all items (Catalog page)
 router.get('/', async (req, res) => {
     try {
-        const { search, category } = req.query;
+        const { search, category, minPrice, maxPrice, condition, sortBy } = req.query;
         let query = 'SELECT * FROM Item WHERE status = "AVAILABLE"';
         const params = [];
 
@@ -18,6 +18,28 @@ router.get('/', async (req, res) => {
         if (category) {
             query += ' AND category = ?';
             params.push(category);
+        }
+        if (minPrice) {
+            query += ' AND price >= ?';
+            params.push(parseFloat(minPrice));
+        }
+        if (maxPrice) {
+            query += ' AND price <= ?';
+            params.push(parseFloat(maxPrice));
+        }
+        if (condition) {
+            query += ' AND `condition` = ?';
+            params.push(condition);
+        }
+
+        if (sortBy === 'price_asc') {
+            query += ' ORDER BY price ASC';
+        } else if (sortBy === 'price_desc') {
+            query += ' ORDER BY price DESC';
+        } else if (sortBy === 'newest') {
+            query += ' ORDER BY created_at DESC';
+        } else {
+            query += ' ORDER BY created_at DESC';
         }
 
         const [items] = await pool.query(query, params);

@@ -29,6 +29,9 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/messages', require('./routes/messages'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/cart', require('./routes/cart'));
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/moderation', require('./routes/moderation'));
 
 // Socket.io integration
 const pool = require('./db');

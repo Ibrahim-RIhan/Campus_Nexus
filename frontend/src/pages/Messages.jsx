@@ -25,16 +25,34 @@ const Messages = () => {
         socketRef.current = io('http://localhost:5000');
         socketRef.current.emit('join', user.id);
 
-        socketRef.current.on('receive_message', (msg) => {
-            setMessages((prev) => [...prev, msg]);
-        });
-
         fetchContacts();
 
         return () => {
             socketRef.current.disconnect();
         };
     }, [user]);
+
+    // Setup receive_message listener dependent on activeContact
+    useEffect(() => {
+        if (!socketRef.current) return;
+
+        const handleReceiveMessage = (msg) => {
+            // Only append to messages array if the message belongs to the active conversation
+            if (activeContact && (msg.senderId === activeContact.id || msg.receiverId === activeContact.id)) {
+                setMessages((prev) => [...prev, msg]);
+            } else {
+                // If we receive a message from someone else, we should probably just refresh the contacts list 
+                // so they appear at the top, or show a notification. For now, just refresh contacts.
+                fetchContacts();
+            }
+        };
+
+        socketRef.current.on('receive_message', handleReceiveMessage);
+
+        return () => {
+            socketRef.current.off('receive_message', handleReceiveMessage);
+        };
+    }, [activeContact]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

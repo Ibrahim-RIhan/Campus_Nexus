@@ -57,6 +57,7 @@ const Navbar = () => {
                             <div className="space-x-4">
                                 <Link to="/catalog" className="hover:text-blue-200 transition">Catalog</Link>
                                 <Link to="/events" className="hover:text-blue-200 transition">Events</Link>
+                                <Link to="/cart" className="hover:text-blue-200 transition">Cart</Link>
                                 <Link to="/my-rentals" className="hover:text-blue-200 transition">My Rentals</Link>
                                 <Link to="/messages" className="hover:text-blue-200 transition">Messages</Link>
                                 {user.role === 'Provider' && (

@@ -16,6 +16,8 @@ const MyRentals = () => {
     // QR Code Modal State
     const [showQrCode, setShowQrCode] = useState(false);
     const [qrValue, setQrValue] = useState('');
+    const [showRefund, setShowRefund] = useState(null); // stores rental id
+    const [refundReason, setRefundReason] = useState('');
     const [qrTitle, setQrTitle] = useState('');
 
     // Scan Modal State
@@ -83,7 +85,24 @@ const MyRentals = () => {
         }
     };
 
-    if (user?.role !== 'Renter' && user?.role !== 'Provider') return <div className="p-8">Please login.</div>;
+    const handleRefund = async (e, rentalId) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post(`http://localhost:5000/api/moderation/refund`, {
+                rentalId,
+                reason: refundReason
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setShowRefund(null);
+            alert("Refund request submitted for review.");
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to submit refund request');
+        }
+    };
+
+    if (!user) return <div className="p-8">Please login.</div>;
 
     return (
         <div className="p-8 max-w-5xl mx-auto">
@@ -118,6 +137,22 @@ const MyRentals = () => {
                                     `}>
                                         {r.status}
                                     </span>
+                                    {r.status === 'COMPLETED' && (
+                                        <div className="mt-2">
+                                            <button onClick={() => setShowRefund(r.id)} className="text-red-500 font-bold hover:underline text-sm">
+                                                Request Refund
+                                            </button>
+                                            {showRefund === r.id && (
+                                                <form onSubmit={(e) => handleRefund(e, r.id)} className="mt-2 bg-red-50 p-3 rounded border border-red-200">
+                                                    <textarea required placeholder="Reason for refund..." value={refundReason} onChange={e => setRefundReason(e.target.value)} className="w-full text-sm border p-2 rounded mb-2" />
+                                                    <div className="flex justify-end space-x-2">
+                                                        <button type="button" onClick={() => setShowRefund(null)} className="text-gray-500 text-xs">Cancel</button>
+                                                        <button type="submit" className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700">Submit Refund</button>
+                                                    </div>
+                                                </form>
+                                            )}
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                     {r.status === 'APPROVED' && (

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { QRCodeSVG } from 'qrcode.react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { AuthContext } from '../contexts/AuthContext';
 
 const Dashboard = () => {
@@ -12,6 +13,9 @@ const Dashboard = () => {
     const [deposit, setDeposit] = useState('');
     const [condition, setCondition] = useState('Good');
     const { user } = useContext(AuthContext);
+
+    // Analytics State
+    const [analytics, setAnalytics] = useState([]);
 
     // QR Code Modal State
     const [showQrCode, setShowQrCode] = useState(false);
@@ -28,8 +32,21 @@ const Dashboard = () => {
         if (user?.role === 'Provider') {
             fetchItems();
             fetchRequests();
+            fetchAnalytics();
         }
     }, [user]);
+
+    const fetchAnalytics = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get('http://localhost:5000/api/analytics', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setAnalytics(res.data.earnings);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const fetchItems = async () => {
         try {
@@ -99,7 +116,27 @@ const Dashboard = () => {
         <div className="p-8 max-w-6xl mx-auto">
             <h1 className="text-3xl font-bold mb-6 text-gray-800">Provider Dashboard</h1>
             
-            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <div className="bg-white p-6 rounded-xl shadow-sm border mb-8">
+                <h2 className="text-xl font-bold mb-4 text-gray-800">Earnings Analytics</h2>
+                {analytics && analytics.length > 0 ? (
+                    <div className="h-64 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analytics}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="month" />
+                                <YAxis />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="total" name="Earnings ($)" fill="#4F46E5" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                ) : (
+                    <p className="text-gray-500">No earnings data available yet.</p>
+                )}
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border mb-8">
                 <h2 className="text-xl font-semibold mb-4">Post a New Item</h2>
                 <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
                     <input type="text" placeholder="Title" value={title} onChange={e => setTitle(e.target.value)} required className="border p-2 rounded" />

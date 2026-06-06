@@ -160,4 +160,20 @@ router.get('/my-rentals', authMiddleware, async (req, res) => {
     }
 });
 
+// Get booked dates for an item
+router.get('/item/:itemId/booked-dates', async (req, res) => {
+    try {
+        const query = `
+            SELECT startDate, endDate 
+            FROM Rental 
+            WHERE itemId = ? AND status IN ('APPROVED', 'ACTIVE')
+        `;
+        const [dates] = await pool.query(query, [req.params.itemId]);
+        res.json(dates);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+
 module.exports = router;
