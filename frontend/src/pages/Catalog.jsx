@@ -139,6 +139,7 @@ const Catalog = () => {
                 ))}
                 {items.length === 0 && <p className="text-gray-500 col-span-3 text-center py-12">No available items found.</p>}
             </div>
+            </div>
         </div>
     );
 };
