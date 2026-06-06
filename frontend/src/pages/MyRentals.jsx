@@ -5,6 +5,12 @@ import { AuthContext } from '../contexts/AuthContext';
 const MyRentals = () => {
     const [rentals, setRentals] = useState([]);
     const { user } = useContext(AuthContext);
+    
+    // Review Modal State
+    const [showReview, setShowReview] = useState(false);
+    const [reviewRentalId, setReviewRentalId] = useState('');
+    const [rating, setRating] = useState(5);
+    const [comment, setComment] = useState('');
 
     useEffect(() => {
         fetchRentals();
@@ -31,6 +37,27 @@ const MyRentals = () => {
             fetchRentals();
         } catch (err) {
             alert(err.response?.data?.message || 'Failed to update status');
+        }
+    };
+
+    const submitReview = async (e) => {
+        e.preventDefault();
+        try {
+            const token = localStorage.getItem('token');
+            await axios.post('http://localhost:5000/api/reviews', {
+                rentalId: reviewRentalId,
+                rating,
+                comment
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setShowReview(false);
+            setRating(5);
+            setComment('');
+            alert('Review submitted successfully!');
+            fetchRentals();
+        } catch (err) {
+            alert('Failed to submit review');
         }
     };
 
@@ -70,14 +97,17 @@ const MyRentals = () => {
                                         {r.status}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                     {r.status === 'APPROVED' && (
-                                        <button onClick={() => updateStatus(r.id, 'ACTIVE')} className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded">Pay & Start Rental</button>
+                                        <button onClick={() => updateStatus(r.id, 'ACTIVE')} className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition">Pay & Start</button>
                                     )}
                                     {r.status === 'RETURNED' && (
-                                        <button onClick={() => updateStatus(r.id, 'COMPLETED')} className="text-white bg-gray-600 hover:bg-gray-700 px-3 py-1 rounded">Acknowledge Completion</button>
+                                        <button onClick={() => updateStatus(r.id, 'COMPLETED')} className="text-white bg-gray-600 hover:bg-gray-700 px-3 py-1 rounded transition">Complete</button>
                                     )}
-                                    {r.status !== 'APPROVED' && r.status !== 'RETURNED' && <span className="text-gray-400">No action</span>}
+                                    {r.status === 'COMPLETED' && (
+                                        <button onClick={() => { setShowReview(true); setReviewRentalId(r.id); }} className="text-yellow-600 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 px-3 py-1 rounded transition">Leave Review</button>
+                                    )}
+                                    {r.status !== 'APPROVED' && r.status !== 'RETURNED' && r.status !== 'COMPLETED' && <span className="text-gray-400">No action</span>}
                                 </td>
                             </tr>
                         ))}
@@ -87,6 +117,29 @@ const MyRentals = () => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Review Modal */}
+            {showReview && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-bold mb-4">Leave a Review</h2>
+                        <form onSubmit={submitReview}>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                                <input type="number" min="1" max="5" value={rating} onChange={e => setRating(e.target.value)} required className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+                                <textarea value={comment} onChange={e => setComment(e.target.value)} required rows="3" className="w-full border p-2 rounded focus:ring-blue-500 focus:border-blue-500"></textarea>
+                            </div>
+                            <div className="flex justify-end space-x-3">
+                                <button type="button" onClick={() => setShowReview(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded transition">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Submit Review</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

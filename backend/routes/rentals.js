@@ -20,6 +20,12 @@ router.post('/request', authMiddleware, async (req, res) => {
             [id, itemId, renterId, startDate, endDate, totalCost, 'REQUESTED']
         );
 
+        // Notify provider about new request
+        await pool.query(
+            'INSERT INTO Notification (id, userId, message) VALUES (?, ?, ?)',
+            [randomUUID(), items[0].ownerId, `New rental request for ${items[0].title}`]
+        );
+
         res.status(201).json({ message: 'Rental requested successfully' });
     } catch (err) {
         console.error(err.message);
@@ -60,6 +66,34 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
         if (!valid) return res.status(400).json({ message: 'Invalid status transition or unauthorized' });
 
         await pool.query('UPDATE Rental SET status = ? WHERE id = ?', [status, rentalId]);
+
+        // Generate Notification
+        let notifyUserId;
+        let msg;
+
+        if (status === 'REQUESTED') {
+            notifyUserId = item.ownerId;
+            msg = `New rental request for ${item.title}`;
+        } else if (status === 'APPROVED' || status === 'REJECTED') {
+            notifyUserId = rental.renterId;
+            msg = `Your request for ${item.title} was ${status.toLowerCase()}`;
+        } else if (status === 'ACTIVE') {
+            notifyUserId = item.ownerId;
+            msg = `Rental for ${item.title} has started`;
+        } else if (status === 'RETURNED') {
+            notifyUserId = rental.renterId;
+            msg = `Provider marked ${item.title} as returned`;
+        } else if (status === 'COMPLETED') {
+            notifyUserId = item.ownerId;
+            msg = `Rental for ${item.title} is fully completed`;
+        }
+
+        if (notifyUserId && msg) {
+            await pool.query(
+                'INSERT INTO Notification (id, userId, message) VALUES (?, ?, ?)',
+                [randomUUID(), notifyUserId, msg]
+            );
+        }
 
         res.json({ message: `Status updated to ${status}` });
     } catch (err) {
