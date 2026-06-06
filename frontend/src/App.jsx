@@ -9,6 +9,7 @@ import ItemDetail from './pages/ItemDetail';
 import Dashboard from './pages/Dashboard';
 import Events from './pages/Events';
 import MyRentals from './pages/MyRentals';
+import Messages from './pages/Messages';
 
 const Home = () => {
   const { user, logout } = React.useContext(AuthContext);
@@ -49,6 +50,7 @@ function App() {
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/my-rentals" element={<ProtectedRoute><MyRentals /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
             <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
           </Routes>
         </div>

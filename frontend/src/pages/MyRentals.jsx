@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
 import { AuthContext } from '../contexts/AuthContext';
 
 const MyRentals = () => {
@@ -11,6 +12,17 @@ const MyRentals = () => {
     const [reviewRentalId, setReviewRentalId] = useState('');
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState('');
+
+    // QR Code Modal State
+    const [showQrCode, setShowQrCode] = useState(false);
+    const [qrValue, setQrValue] = useState('');
+    const [qrTitle, setQrTitle] = useState('');
+
+    // Scan Modal State
+    const [showScanner, setShowScanner] = useState(false);
+    const [scanRentalId, setScanRentalId] = useState('');
+    const [scanTargetStatus, setScanTargetStatus] = useState('');
+    const [manualCode, setManualCode] = useState('');
 
     useEffect(() => {
         fetchRentals();
@@ -28,16 +40,26 @@ const MyRentals = () => {
         }
     };
 
-    const updateStatus = async (id, newStatus) => {
+    const updateStatus = async (id, newStatus, secret = null) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.patch(`http://localhost:5000/api/rentals/${id}/status`, { status: newStatus }, {
+            const payload = { status: newStatus };
+            if (secret) payload.qrSecret = secret;
+
+            await axios.patch(`http://localhost:5000/api/rentals/${id}/status`, payload, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            setShowScanner(false);
+            setManualCode('');
             fetchRentals();
         } catch (err) {
             alert(err.response?.data?.message || 'Failed to update status');
         }
+    };
+
+    const handleSimulateScan = (e) => {
+        e.preventDefault();
+        updateStatus(scanRentalId, scanTargetStatus, manualCode);
     };
 
     const submitReview = async (e) => {
@@ -99,7 +121,20 @@ const MyRentals = () => {
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                     {r.status === 'APPROVED' && (
-                                        <button onClick={() => updateStatus(r.id, 'ACTIVE')} className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition">Pay & Start</button>
+                                        <button 
+                                            onClick={() => { setQrValue(r.qrSecret); setQrTitle("Show this to Provider to Activate"); setShowQrCode(true); }} 
+                                            className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition"
+                                        >
+                                            Show Activation QR
+                                        </button>
+                                    )}
+                                    {r.status === 'ACTIVE' && (
+                                        <button 
+                                            onClick={() => { setScanRentalId(r.id); setScanTargetStatus('RETURNED'); setShowScanner(true); }} 
+                                            className="text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded transition"
+                                        >
+                                            Scan Return QR
+                                        </button>
                                     )}
                                     {r.status === 'RETURNED' && (
                                         <button onClick={() => updateStatus(r.id, 'COMPLETED')} className="text-white bg-gray-600 hover:bg-gray-700 px-3 py-1 rounded transition">Complete</button>
@@ -107,7 +142,6 @@ const MyRentals = () => {
                                     {r.status === 'COMPLETED' && (
                                         <button onClick={() => { setShowReview(true); setReviewRentalId(r.id); }} className="text-yellow-600 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 px-3 py-1 rounded transition">Leave Review</button>
                                     )}
-                                    {r.status !== 'APPROVED' && r.status !== 'RETURNED' && r.status !== 'COMPLETED' && <span className="text-gray-400">No action</span>}
                                 </td>
                             </tr>
                         ))}
@@ -135,6 +169,44 @@ const MyRentals = () => {
                             <div className="flex justify-end space-x-3">
                                 <button type="button" onClick={() => setShowReview(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded transition">Cancel</button>
                                 <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Submit Review</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* QR Code Display Modal */}
+            {showQrCode && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl text-center">
+                        <h2 className="text-xl font-bold mb-4">{qrTitle}</h2>
+                        <div className="flex justify-center mb-4">
+                            <QRCodeSVG value={qrValue} size={200} />
+                        </div>
+                        <p className="text-xs text-gray-500 mb-6">Secret Code: {qrValue}</p>
+                        <button onClick={() => setShowQrCode(false)} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Close</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Scanner / Manual Code Entry Modal */}
+            {showScanner && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h2 className="text-xl font-bold mb-4">Verify Handoff</h2>
+                        <p className="text-gray-600 text-sm mb-4">In a real app, the camera would open here. For this demo, enter the secret code displayed on the other user's screen.</p>
+                        <form onSubmit={handleSimulateScan}>
+                            <input 
+                                type="text" 
+                                value={manualCode} 
+                                onChange={e => setManualCode(e.target.value)} 
+                                placeholder="Enter secret code..." 
+                                required 
+                                className="w-full border p-2 rounded mb-4"
+                            />
+                            <div className="flex justify-end space-x-3">
+                                <button type="button" onClick={() => setShowScanner(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded transition">Cancel</button>
+                                <button type="submit" className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition">Submit Code</button>
                             </div>
                         </form>
                     </div>

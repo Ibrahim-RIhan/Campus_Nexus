@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useContext } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import { AuthContext } from '../contexts/AuthContext';
 
 const ItemDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useContext(AuthContext);
     const [item, setItem] = useState(null);
+    const [trustScore, setTrustScore] = useState(null);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [error, setError] = useState('');
@@ -16,10 +21,21 @@ const ItemDetail = () => {
             try {
                 const res = await axios.get(`http://localhost:5000/api/items/${id}`);
                 setItem(res.data);
+                fetchTrustScore(res.data.ownerId);
             } catch (err) {
                 setError('Failed to fetch item details.');
             }
         };
+
+        const fetchTrustScore = async (ownerId) => {
+            try {
+                const res = await axios.get(`http://localhost:5000/api/users/${ownerId}/trust-score`);
+                setTrustScore(res.data);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         fetchItem();
     }, [id]);
 
@@ -64,21 +80,42 @@ const ItemDetail = () => {
                 </div>
                 <div className="w-full md:w-1/2 p-8">
                     <h1 className="text-3xl font-bold text-gray-800 mb-2">{item.title}</h1>
-                    <p className="text-gray-500 mb-6">{item.category} • Condition: {item.condition}</p>
+                    <p className="text-gray-500 mb-4">{item.category} • Condition: {item.condition}</p>
+                    
+                    {trustScore && (
+                        <div className="mb-6 flex items-center bg-yellow-50 p-3 rounded-lg border border-yellow-100">
+                            <div className="flex-1">
+                                <p className="text-sm text-yellow-800 font-semibold">Provider: {item.ownerName}</p>
+                                <p className="text-xs text-yellow-600">Trust Score: {trustScore.score}/100 • ★ {trustScore.avgRating} ({trustScore.reviewCount} reviews)</p>
+                            </div>
+                            {trustScore.badge && (
+                                <span className="text-sm font-bold bg-white px-3 py-1 rounded-full shadow-sm border border-yellow-200">{trustScore.badge}</span>
+                            )}
+                        </div>
+                    )}
                     
                     <div className="mb-6 bg-gray-50 p-4 rounded-lg">
                         <div className="flex justify-between mb-2">
                             <span className="text-gray-600">Price per day</span>
                             <span className="font-semibold text-gray-800">${item.price}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between mb-4">
                             <span className="text-gray-600">Security Deposit</span>
                             <span className="font-semibold text-gray-800">${item.deposit}</span>
                         </div>
+                        
+                        {user && user.id !== item.ownerId && (
+                            <Link 
+                                to={`/messages?user=${item.ownerId}&name=${encodeURIComponent(item.ownerName)}`} 
+                                className="block w-full text-center bg-white border border-blue-600 text-blue-600 font-semibold py-2 rounded hover:bg-blue-50 transition"
+                            >
+                                💬 Message Provider ({item.ownerName})
+                            </Link>
+                        )}
                     </div>
 
                     <h3 className="font-bold text-lg mb-4 text-gray-800">Check Availability & Request</h3>
-                    <form onSubmit={handleRequest} className="space-y-4">
+                    <form onSubmit={handleRequest} className="space-y-4 mb-8">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm text-gray-600 mb-1">Start Date</label>
@@ -106,6 +143,20 @@ const ItemDetail = () => {
                             Request Rental
                         </button>
                     </form>
+
+                    {item.latitude && item.longitude && (
+                        <div>
+                            <h3 className="font-bold text-lg mb-4 text-gray-800">Pickup Location</h3>
+                            <div className="h-48 w-full rounded-lg overflow-hidden border">
+                                <MapContainer center={[item.latitude, item.longitude]} zoom={15} scrollWheelZoom={false} style={{ height: '100%', width: '100%' }}>
+                                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                                    <Marker position={[item.latitude, item.longitude]}>
+                                        <Popup>Approximate pickup location.</Popup>
+                                    </Marker>
+                                </MapContainer>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

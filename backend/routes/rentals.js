@@ -59,13 +59,33 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
 
         let valid = false;
         if (isProvider && rental.status === 'REQUESTED' && (status === 'APPROVED' || status === 'REJECTED')) valid = true;
-        else if (isRenter && rental.status === 'APPROVED' && status === 'ACTIVE') valid = true;
-        else if (isProvider && rental.status === 'ACTIVE' && status === 'RETURNED') valid = true;
+        else if (isRenter && rental.status === 'APPROVED' && status === 'ACTIVE') {
+            // Require QR scan for Renter activation? Wait, the Provider is the one scanning the Renter's QR to activate.
+            // Oh right, original plan:
+            // To start rental (ACTIVE), Provider scans Renter's QR code.
+            valid = true;
+        } else if (isProvider && rental.status === 'APPROVED' && status === 'ACTIVE') {
+            if (req.body.qrSecret !== rental.qrSecret) return res.status(400).json({ message: 'Invalid QR Code' });
+            valid = true;
+        } else if (isRenter && rental.status === 'ACTIVE' && status === 'RETURNED') {
+            if (req.body.qrSecret !== rental.returnQrSecret) return res.status(400).json({ message: 'Invalid QR Code' });
+            valid = true;
+        } else if (isProvider && rental.status === 'ACTIVE' && status === 'RETURNED') valid = true;
         else if ((isProvider || isRenter) && rental.status === 'RETURNED' && status === 'COMPLETED') valid = true;
 
         if (!valid) return res.status(400).json({ message: 'Invalid status transition or unauthorized' });
 
-        await pool.query('UPDATE Rental SET status = ? WHERE id = ?', [status, rentalId]);
+        let updateQuery = 'UPDATE Rental SET status = ? WHERE id = ?';
+        let updateParams = [status, rentalId];
+
+        if (status === 'APPROVED') {
+            const qrSecret = randomUUID();
+            const returnQrSecret = randomUUID();
+            updateQuery = 'UPDATE Rental SET status = ?, qrSecret = ?, returnQrSecret = ? WHERE id = ?';
+            updateParams = [status, qrSecret, returnQrSecret, rentalId];
+        }
+
+        await pool.query(updateQuery, updateParams);
 
         // Generate Notification
         let notifyUserId;

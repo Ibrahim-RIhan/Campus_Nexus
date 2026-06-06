@@ -64,7 +64,12 @@ router.post('/', authMiddleware, async (req, res) => {
 // Get single item details
 router.get('/:id', async (req, res) => {
     try {
-        const [items] = await pool.query('SELECT * FROM Item WHERE id = ?', [req.params.id]);
+        const [items] = await pool.query(`
+            SELECT i.*, u.name as ownerName 
+            FROM Item i 
+            JOIN User u ON i.ownerId = u.id 
+            WHERE i.id = ?
+        `, [req.params.id]);
         if (items.length === 0) {
             return res.status(404).json({ message: 'Item not found' });
         }

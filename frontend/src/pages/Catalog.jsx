@@ -4,6 +4,7 @@ import axios from 'axios';
 
 const Catalog = () => {
     const [items, setItems] = useState([]);
+    const [trustScores, setTrustScores] = useState({});
     const [search, setSearch] = useState('');
 
     useEffect(() => {
@@ -14,6 +15,19 @@ const Catalog = () => {
         try {
             const res = await axios.get(`http://localhost:5000/api/items?search=${search}`);
             setItems(res.data);
+            
+            // Fetch trust scores for unique owners
+            const ownerIds = [...new Set(res.data.map(item => item.ownerId))];
+            ownerIds.forEach(id => {
+                if (id && !trustScores[id]) {
+                    axios.get(`http://localhost:5000/api/users/${id}/trust-score`)
+                        .then(scoreRes => {
+                            setTrustScores(prev => ({ ...prev, [id]: scoreRes.data }));
+                        })
+                        .catch(err => console.error("Error fetching trust score", err));
+                }
+            });
+
         } catch (err) {
             console.error('Error fetching catalog', err);
         }
@@ -40,7 +54,16 @@ const Catalog = () => {
                         </div>
                         <div className="p-5">
                             <h3 className="font-bold text-xl text-gray-800">{item.title}</h3>
-                            <p className="text-gray-500 text-sm mb-3">{item.category}</p>
+                            <p className="text-gray-500 text-sm mb-2">{item.category}</p>
+                            
+                            {trustScores[item.ownerId] && trustScores[item.ownerId].badge && (
+                                <div className="mb-2">
+                                    <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded shadow-sm border border-yellow-200">
+                                        {trustScores[item.ownerId].badge}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="flex justify-between items-center mt-4">
                                 <div>
                                     <p className="text-blue-600 font-bold text-lg">${item.price}<span className="text-sm text-gray-500 font-normal">/day</span></p>
